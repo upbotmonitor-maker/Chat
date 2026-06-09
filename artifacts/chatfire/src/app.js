@@ -855,10 +855,12 @@ function renderMessages(msgs) {
 
     if (msg.type === "voice" && msg.audioURL) {
       const dur = msg.duration ? formatDuration(msg.duration) : "0:00";
+      // URL'yi attribute'a yazma — base64 safeHtml'dan geçince bozulabilir
+      _voiceUrlMap.set(msg.id, msg.audioURL);
       html += `
         <div class="message-wrapper ${isMine ? "mine" : "theirs"} ${consecutive ? "consecutive" : ""}" data-msgid="${safeHtml(msg.id)}">
           <div class="bubble bubble-voice">
-            <div class="voice-player" data-src="${safeHtml(msg.audioURL)}" data-dur="${msg.duration || 0}">
+            <div class="voice-player" data-msgid="${safeHtml(msg.id)}" data-dur="${msg.duration || 0}">
               <button class="vp-play" type="button" aria-label="Oynat">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
               </button>
@@ -904,6 +906,7 @@ function renderMessages(msgs) {
 // ─── Özel Ses Oynatıcı ────────────────────────────────────
 let _vpCurrentAudio = null;
 let _vpCurrentPlayer = null;
+const _voiceUrlMap = new Map(); // msgId → audioURL (base64 bozulmasın diye attribute'a yazılmıyor)
 
 const PLAY_SVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
 const PAUSE_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`;
@@ -924,14 +927,35 @@ function resetVpPlayer(player, totalDur) {
 
 function initVoicePlayers() {
   el.messages.querySelectorAll(".voice-player").forEach((player) => {
-    const src      = player.dataset.src;
+    const msgId    = player.dataset.msgid;
+    const src      = _voiceUrlMap.get(msgId) || "";
     const totalDur = parseFloat(player.dataset.dur) || 0;
     const btn      = player.querySelector(".vp-play");
     const fill     = player.querySelector(".vp-fill");
     const time     = player.querySelector(".vp-time");
     const track    = player.querySelector(".vp-track");
     let audio      = null;
-    let _rafId     = null;
+    let _ticker    = null;
+    let _playing   = false;
+
+    function updateUI() {
+      if (!audio) return;
+      const dur = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : totalDur;
+      if (dur > 0) {
+        fill.style.width = `${(audio.currentTime / dur) * 100}%`;
+        time.textContent = `${fmtT(audio.currentTime)} / ${fmtT(dur)}`;
+      }
+    }
+
+    function startTicker() {
+      clearInterval(_ticker);
+      _ticker = setInterval(updateUI, 100);
+    }
+
+    function stopTicker() {
+      clearInterval(_ticker);
+      _ticker = null;
+    }
 
     function stopOther() {
       if (_vpCurrentAudio && _vpCurrentAudio !== audio) {
@@ -945,53 +969,63 @@ function initVoicePlayers() {
       }
     }
 
-    // requestAnimationFrame döngüsü — timeupdate'e güvenmek yerine
-    // her frame'de currentTime'ı doğrudan oku; mobilde çok daha güvenilir
-    function startRaf() {
-      cancelAnimationFrame(_rafId);
-      function tick() {
-        if (!audio || audio.paused || audio.ended) return;
-        const dur = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : totalDur;
-        if (dur > 0) {
-          fill.style.width = `${(audio.currentTime / dur) * 100}%`;
-          time.textContent = `${fmtT(audio.currentTime)} / ${fmtT(dur)}`;
-        }
-        _rafId = requestAnimationFrame(tick);
-      }
-      _rafId = requestAnimationFrame(tick);
-    }
-
     function onEnded() {
-      cancelAnimationFrame(_rafId);
+      stopTicker();
+      _playing = false;
       resetVpPlayer(player, totalDur);
       audio = null;
       _vpCurrentAudio = null;
       _vpCurrentPlayer = null;
     }
 
+    function onError() {
+      stopTicker();
+      _playing = false;
+      resetVpPlayer(player, totalDur);
+      audio = null;
+    }
+
     btn.addEventListener("click", () => {
       if (!audio) {
+        if (!src) return;
         stopOther();
         audio = new Audio(src);
         audio.addEventListener("ended", onEnded);
-        audio.addEventListener("error", () => {
-          cancelAnimationFrame(_rafId);
-          resetVpPlayer(player, totalDur);
-          audio = null;
-        });
+        audio.addEventListener("error", onError);
         _vpCurrentAudio   = audio;
         _vpCurrentPlayer  = player;
-        audio.play()
-          .then(() => { btn.innerHTML = PAUSE_SVG; startRaf(); })
-          .catch(() => { resetVpPlayer(player, totalDur); audio = null; });
-      } else if (audio.paused) {
+        const p = audio.play();
+        if (p && p.then) {
+          p.then(() => {
+            _playing = true;
+            btn.innerHTML = PAUSE_SVG;
+            startTicker();
+          }).catch(onError);
+        } else {
+          _playing = true;
+          btn.innerHTML = PAUSE_SVG;
+          startTicker();
+        }
+      } else if (!_playing || audio.paused) {
         stopOther();
         _vpCurrentAudio  = audio;
         _vpCurrentPlayer = player;
-        audio.play().then(() => { btn.innerHTML = PAUSE_SVG; startRaf(); });
+        const p = audio.play();
+        if (p && p.then) {
+          p.then(() => {
+            _playing = true;
+            btn.innerHTML = PAUSE_SVG;
+            startTicker();
+          });
+        } else {
+          _playing = true;
+          btn.innerHTML = PAUSE_SVG;
+          startTicker();
+        }
       } else {
         audio.pause();
-        cancelAnimationFrame(_rafId);
+        stopTicker();
+        _playing = false;
         btn.innerHTML = PLAY_SVG;
         _vpCurrentAudio  = null;
         _vpCurrentPlayer = null;
@@ -1002,8 +1036,9 @@ function initVoicePlayers() {
       if (!audio) return;
       const rect = track.getBoundingClientRect();
       const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const dur  = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : totalDur;
+      const dur  = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : totalDur;
       audio.currentTime = pct * dur;
+      updateUI();
     });
   });
 }
