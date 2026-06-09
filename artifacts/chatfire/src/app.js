@@ -1603,7 +1603,8 @@ onAuth(async (user) => {
             state.selectedProfile = partner;
             updatePartnerStatus(partner);
             updatePartnerAvatar(partner);
-            if (state.messages.length > 0) renderMessages(state.messages);
+            // renderMessages burada çağrılmıyor — mesajlar subscribeMessages tarafından yönetilir
+            // Her presence güncellemesinde tüm sohbetin sıfırlanmasını önler
           }
         }
 
