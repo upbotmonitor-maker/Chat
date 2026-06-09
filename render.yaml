@@ -1,7 +1,7 @@
 services:
   - type: static
     name: ChatFire
-    buildCommand: cd artifacts/chatfire && npm install && npx vite build --config vite.config.render.ts
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/chatfire run build:render
     staticPublishPath: artifacts/chatfire/dist/public
     pullRequestPreviewsEnabled: false
     branch: main
