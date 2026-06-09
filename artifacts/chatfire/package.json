@@ -14,10 +14,10 @@
     "firebase": "^11.2.0"
   },
   "devDependencies": {
-    "@replit/vite-plugin-cartographer": "catalog:",
-    "@replit/vite-plugin-dev-banner": "catalog:",
-    "@replit/vite-plugin-runtime-error-modal": "catalog:",
-    "@types/node": "catalog:",
-    "vite": "catalog:"
+    "@replit/vite-plugin-cartographer": "^0.5.1",
+    "@replit/vite-plugin-dev-banner": "^0.1.1",
+    "@replit/vite-plugin-runtime-error-modal": "^0.0.6",
+    "@types/node": "^25.3.3",
+    "vite": "^7.3.2"
   }
 }
