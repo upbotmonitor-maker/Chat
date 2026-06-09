@@ -5,22 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ChatFire</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
 
-<!-- ─── Auth Screen ───────────────────────────────────── -->
+<!-- ─── Splash Screen ─────────────────────────────────────── -->
+<div id="splash-screen" class="splash-screen">
+  <div class="splash-inner">
+    <div class="splash-logo-wrap">
+      <img src="/chatfire-logo.png" class="splash-logo" alt="ChatFire" />
+    </div>
+    <div class="splash-brand">
+      <span class="splash-brand-text">ChatFire</span>
+      <span class="splash-flame-emoji">🔥</span>
+    </div>
+    <div class="splash-tagline">Gerçek zamanlı sohbet</div>
+  </div>
+  <div class="splash-footer">
+    <div class="splash-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── In-App Message Notification ─────────────────────────── -->
+<div id="msg-notification" class="msg-notification">
+  <div class="msg-notif-avatar" id="msg-notif-avatar"></div>
+  <div class="msg-notif-body">
+    <div class="msg-notif-name" id="msg-notif-name"></div>
+    <div class="msg-notif-text" id="msg-notif-text"></div>
+  </div>
+  <div class="msg-notif-count" id="msg-notif-count"></div>
+</div>
+
+<!-- ─── Auth Screen ───────────────────────────────────────── -->
 <div id="auth-screen" class="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="32" height="32" rx="10" fill="#6366f1"/>
-        <path d="M8 10C8 8.895 8.895 8 10 8h12c1.105 0 2 .895 2 2v8c0 1.105-.895 2-2 2h-3l-3 3v-3h-4c-1.105 0-2-.895-2-2v-8z" fill="white"/>
-        <circle cx="12" cy="14" r="1.2" fill="#6366f1"/>
-        <circle cx="16" cy="14" r="1.2" fill="#6366f1"/>
-        <circle cx="20" cy="14" r="1.2" fill="#6366f1"/>
-      </svg>
+      <img src="/chatfire-logo.png" class="auth-logo-img" alt="ChatFire" />
       <span class="auth-logo-text">ChatFire</span>
     </div>
 
@@ -72,7 +95,7 @@
   </div>
 </div>
 
-<!-- ─── Chat Screen ───────────────────────────────────── -->
+<!-- ─── Chat Screen ───────────────────────────────────────── -->
 <div id="chat-screen" class="chat-screen hidden">
 
   <!-- Sidebar -->
@@ -86,7 +109,9 @@
           </div>
           <input type="file" id="photo-upload" accept="image/*" class="hidden" />
         </div>
-        <span class="username-display" id="my-username"></span>
+        <div class="sidebar-user-meta">
+          <span class="username-display" id="my-username"></span>
+        </div>
       </div>
       <div class="header-actions">
         <button id="theme-toggle" class="icon-btn" title="Tema değiştir">
@@ -117,9 +142,7 @@
 
     <!-- Empty State -->
     <div id="empty-state" class="empty-state">
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
+      <img src="/chatfire-logo.png" class="empty-logo" alt="ChatFire" />
       <p>Sohbet başlatmak için bir kullanıcı seç</p>
     </div>
 
@@ -208,7 +231,7 @@
   </div><!-- /chat-main -->
 </div><!-- /chat-screen -->
 
-<!-- ─── Voice Call Modal ───────────────────────────────── -->
+<!-- ─── Voice Call Modal ───────────────────────────────────── -->
 <div id="voice-call-modal" class="voice-modal hidden">
   <div class="voice-modal-inner">
     <div class="avatar voice-avatar" id="call-avatar">?</div>
@@ -225,7 +248,7 @@
   </div>
 </div>
 
-<!-- ─── Photo Loading Overlay ─────────────────────────── -->
+<!-- ─── Photo Loading Overlay ─────────────────────────────── -->
 <div id="photo-loading" class="photo-loading hidden">
   <div class="photo-loading-inner">
     <div class="photo-spinner"></div>
@@ -233,13 +256,13 @@
   </div>
 </div>
 
-<!-- ─── Lightbox ───────────────────────────────────────── -->
+<!-- ─── Lightbox ───────────────────────────────────────────── -->
 <div id="lightbox" class="lightbox hidden">
   <button id="lightbox-close" class="lightbox-close" title="Kapat">✕</button>
   <img id="lightbox-img" class="lightbox-img" src="" alt="Büyük görsel" />
 </div>
 
-<!-- ─── Story Viewer ───────────────────────────────────── -->
+<!-- ─── Story Viewer ───────────────────────────────────────── -->
 <div id="story-viewer" class="story-viewer hidden">
   <div class="sv-progress">
     <div id="sv-progress-fill" class="sv-progress-fill"></div>
@@ -253,7 +276,7 @@
   <div id="sv-content" class="sv-content"></div>
 </div>
 
-<!-- ─── Story Creator ─────────────────────────────────── -->
+<!-- ─── Story Creator ─────────────────────────────────────── -->
 <div id="story-creator" class="story-creator hidden">
   <div class="sc-inner">
     <div class="sc-header">
@@ -281,7 +304,7 @@
   </div>
 </div>
 
-<!-- ─── Reaction Picker ────────────────────────────────── -->
+<!-- ─── Reaction Picker ────────────────────────────────────── -->
 <div id="react-picker" class="react-picker hidden">
   <button class="react-emoji" data-emoji="❤️">❤️</button>
   <button class="react-emoji" data-emoji="😂">😂</button>
@@ -291,17 +314,17 @@
   <button class="react-emoji" data-emoji="👍">👍</button>
 </div>
 
-<!-- ─── Options Menu ───────────────────────────────────── -->
+<!-- ─── Options Menu ───────────────────────────────────────── -->
 <div id="options-menu" class="options-menu hidden">
   <button id="options-block-btn" class="options-item options-danger">🚫 Engelle</button>
   <button id="options-unblock-btn" class="options-item">✅ Engeli Kaldır</button>
 </div>
 
-<!-- ─── Block Dialog ──────────────────────────────────── -->
+<!-- ─── Block Dialog ──────────────────────────────────────── -->
 <div id="block-dialog" class="modal-overlay hidden">
   <div class="modal-card">
     <div id="block-dialog-title" class="modal-title">Kullanıcı Engelleniyor</div>
-    <div id="block-dialog-desc" class="modal-desc">Bu kullanıcıyı engellemek istediğinden emin misin? Listenden kaybolacak.</div>
+    <div id="block-dialog-desc" class="modal-desc">Bu kullanıcıyı engellemek istediğinden emin misin?</div>
     <div class="modal-actions">
       <button id="block-cancel-btn" class="btn-secondary">İptal</button>
       <button id="block-confirm-btn" class="btn-danger">Engelle</button>
@@ -309,7 +332,7 @@
   </div>
 </div>
 
-<!-- ─── Toast Container ───────────────────────────────── -->
+<!-- ─── Toast Container ───────────────────────────────────── -->
 <div id="toast-container" class="toast-container"></div>
 
 <script type="module" src="/src/app.js"></script>

@@ -31,6 +31,21 @@ import {
   unblockUser,
 } from "./firebase.js";
 
+// ─── Yasaklı / boş hesaplar ──────────────────────────────
+const BANNED_USERS = new Set(['defne', 'username', 'merhaba', 'ulalala', 'goku']);
+
+// ─── Özel rozetler ────────────────────────────────────────
+const SPECIAL_BADGES = {
+  'af_goku':  { img: '/blue-tick.png',     cls: 'badge-blue-tick', alt: '✓' },
+  'gg00cat':  { img: '/youtube-badge.png', cls: 'badge-youtube',   alt: 'YT' },
+};
+
+function getBadgeHtml(username, size = 'list') {
+  const badge = SPECIAL_BADGES[username?.toLowerCase()];
+  if (!badge) return '';
+  return `<img src="${badge.img}" class="user-special-badge ${badge.cls} badge-${size}" alt="${badge.alt}" draggable="false" />`;
+}
+
 // ─── Upload timeout yardımcısı ────────────────────────────
 function withTimeout(promise, ms = 15000) {
   let timer;
@@ -613,6 +628,53 @@ el.micBtn.addEventListener("touchcancel", () => {
 
 el.cancelRecordingBtn.addEventListener("click", cancelVoiceRecording);
 
+// ─── In-App Mesaj Bildirimi ───────────────────────────────
+let _prevUnreadCounts = {};
+let _notifTimer = null;
+let _notifDismissTimer = null;
+
+function showMsgNotification(partnerUid, unreadCount) {
+  const user = state.users.find((u) => u.uid === partnerUid);
+  if (!user) return;
+
+  const el_notif = document.getElementById('msg-notification');
+  const el_avatar = document.getElementById('msg-notif-avatar');
+  const el_name   = document.getElementById('msg-notif-name');
+  const el_text   = document.getElementById('msg-notif-text');
+  const el_count  = document.getElementById('msg-notif-count');
+  if (!el_notif) return;
+
+  const color   = getAvatarColor(user.username);
+  const initial = (user.username || '?')[0].toUpperCase();
+  const badge   = getBadgeHtml(user.username, 'notif');
+
+  if (user.photoURL) {
+    el_avatar.innerHTML = `<img src="${safeHtml(user.photoURL)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" />`;
+    el_avatar.style.background = 'transparent';
+  } else {
+    el_avatar.innerHTML = initial;
+    el_avatar.style.background = color;
+  }
+  el_name.innerHTML  = `${safeHtml(user.displayName || user.username)}${badge}`;
+  el_text.textContent = unreadCount > 1 ? `${unreadCount} yeni mesaj` : 'Yeni mesaj';
+  el_count.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+  el_count.style.display = 'flex';
+
+  if (_notifDismissTimer) clearTimeout(_notifDismissTimer);
+  el_notif.classList.add('show');
+
+  const goToUser = () => {
+    el_notif.classList.remove('show');
+    const target = state.users.find((u) => u.uid === partnerUid);
+    if (target) selectUser(target);
+  };
+  el_notif.onclick = goToUser;
+
+  _notifDismissTimer = setTimeout(() => {
+    el_notif.classList.remove('show');
+  }, 5000);
+}
+
 // ─── Kullanıcı arama ─────────────────────────────────────
 el.userSearch.addEventListener("input", renderUserList);
 
@@ -632,8 +694,12 @@ function renderUserList() {
   }
 
   el.userList.innerHTML = filtered
-    .filter((u) => !state.blockedUsers.includes(u.uid))
-    .sort((a, b) => (isActuallyOnline(b) ? 1 : 0) - (isActuallyOnline(a) ? 1 : 0))
+    .filter((u) => !state.blockedUsers.includes(u.uid) && !BANNED_USERS.has(u.username?.toLowerCase()))
+    .sort((a, b) => {
+      const unreadDiff = (state.unreadCounts[b.uid] || 0) - (state.unreadCounts[a.uid] || 0);
+      if (unreadDiff !== 0) return unreadDiff;
+      return (isActuallyOnline(b) ? 1 : 0) - (isActuallyOnline(a) ? 1 : 0);
+    })
     .map((u) => {
       const isActive = u.uid === state.selectedUid;
       const color = getAvatarColor(u.username);
@@ -645,6 +711,7 @@ function renderUserList() {
       const unread = state.unreadCounts[u.uid] || 0;
       const unreadBadge = unread > 0 ? `<span class="unread-badge">${unread > 99 ? "99+" : unread}</span>` : "";
       const hasStory = state.statuses.some((s) => s.uid === u.uid);
+      const specialBadge = getBadgeHtml(u.username, 'list');
 
       return `
         <div class="user-item ${isActive ? "active" : ""}" data-uid="${safeHtml(u.uid)}">
@@ -654,7 +721,7 @@ function renderUserList() {
           </div>
           <div class="user-info">
             <div class="user-badge-row">
-              <span class="user-name">${safeHtml(u.displayName || u.username)}</span>
+              <span class="user-name">${safeHtml(u.displayName || u.username)}</span>${specialBadge}
               ${unreadBadge}
             </div>
             <span class="user-status">${statusText}</span>
@@ -685,7 +752,7 @@ async function selectUser(uid) {
   el.messageInput.disabled = false;
 
   updatePartnerAvatar(profile);
-  el.partnerName.innerHTML = safeHtml(profile?.displayName || profile?.username || uid);
+  el.partnerName.innerHTML = `${safeHtml(profile?.displayName || profile?.username || uid)}${getBadgeHtml(profile?.username, 'header')}`;
   updatePartnerStatus(profile);
 
   el.messages.innerHTML = `<div class="messages-loading">Yükleniyor...</div>`;
@@ -1482,8 +1549,15 @@ onAuth(async (user) => {
       }
     );
 
-    // BUG FIX: subscribeConversations already returns {uid: count} object
     state.unsubConversations = subscribeConversations(user.uid, (counts) => {
+      // Yeni mesaj kontrolü - bildirim göster
+      Object.entries(counts).forEach(([partnerUid, newCount]) => {
+        const oldCount = _prevUnreadCounts[partnerUid] || 0;
+        if (newCount > oldCount && partnerUid !== state.selectedUid) {
+          showMsgNotification(partnerUid, newCount);
+        }
+      });
+      _prevUnreadCounts = { ...counts };
       state.unreadCounts = counts;
       renderUserList();
     });
@@ -1514,3 +1588,15 @@ onAuth(async (user) => {
 });
 
 applyTheme(state.theme);
+
+// ─── Splash Screen ────────────────────────────────────────
+(function initSplash() {
+  const splash = document.getElementById('splash-screen');
+  if (!splash) return;
+  setTimeout(() => {
+    splash.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+    splash.style.opacity = '0';
+    splash.style.transform = 'scale(1.04)';
+    setTimeout(() => splash.remove(), 600);
+  }, 2600);
+})();

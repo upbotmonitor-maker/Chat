@@ -85,13 +85,11 @@ input, textarea { font-family: inherit; outline: none; border: none; }
   box-shadow: var(--shadow-lg);
 }
 .auth-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 28px;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-bottom: 24px;
 }
-.auth-logo-text { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.auth-logo-img { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; }
+.auth-logo-text { font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
 .auth-tabs {
   display: flex;
   background: var(--surface-2);
@@ -1117,4 +1115,149 @@ input, textarea { font-family: inherit; outline: none; border: none; }
   .toast-container { top: 12px; right: 12px; left: 12px; }
   .toast { min-width: unset; max-width: 100%; }
   .rec-label { display: none; }
+}
+
+/* ─── Splash Screen ──────────────────────────────────────── */
+.splash-screen {
+  position: fixed; inset: 0;
+  background: linear-gradient(145deg, #0a0a0a 0%, #111 60%, #1a0a00 100%);
+  z-index: 99999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0;
+}
+.splash-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  animation: splashIn 0.65s cubic-bezier(0.175,0.885,0.32,1.275) both;
+}
+.splash-logo-wrap {
+  width: 120px; height: 120px;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 0 60px rgba(255,110,0,0.45), 0 8px 32px rgba(0,0,0,0.6);
+  animation: splashGlow 1.5s ease infinite alternate;
+}
+.splash-logo { width: 100%; height: 100%; object-fit: cover; display: block; }
+.splash-brand {
+  display: flex; align-items: center; gap: 8px; margin-top: 4px;
+}
+.splash-brand-text {
+  font-size: 34px; font-weight: 900; color: #fff;
+  letter-spacing: -1px;
+}
+.splash-flame-emoji {
+  font-size: 30px;
+  animation: flameFlicker 0.35s ease infinite alternate;
+  display: inline-block;
+}
+.splash-tagline {
+  font-size: 13px; color: rgba(255,255,255,0.45);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.splash-footer {
+  position: absolute; bottom: 48px;
+}
+.splash-dots {
+  display: flex; gap: 8px;
+}
+.splash-dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  animation: splashDot 1.2s ease infinite;
+}
+.splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+.splash-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes splashIn {
+  from { opacity: 0; transform: scale(0.6) translateY(30px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes splashGlow {
+  from { box-shadow: 0 0 40px rgba(255,110,0,0.3), 0 8px 32px rgba(0,0,0,0.6); }
+  to   { box-shadow: 0 0 80px rgba(255,160,0,0.6), 0 8px 32px rgba(0,0,0,0.6); }
+}
+@keyframes flameFlicker {
+  from { transform: scale(1) rotate(-6deg); }
+  to   { transform: scale(1.15) rotate(6deg); }
+}
+@keyframes splashDot {
+  0%,80%,100% { opacity: 0.3; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.4); }
+}
+
+/* ─── Auth Logo Image ────────────────────────────────────── */
+.auth-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+.auth-logo-img { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+.auth-logo-text { font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+
+/* ─── Empty State Logo ───────────────────────────────────── */
+.empty-logo { width: 72px; height: 72px; border-radius: 16px; object-fit: cover; opacity: 0.7; margin-bottom: 8px; }
+
+/* ─── In-App Message Notification ───────────────────────── */
+.msg-notification {
+  position: fixed; top: 16px; left: 50%;
+  transform: translateX(-50%) translateY(calc(-100% - 20px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 9000;
+  display: flex; align-items: center; gap: 12px;
+  min-width: 260px; max-width: 360px;
+  cursor: pointer;
+  transition: transform 0.38s cubic-bezier(0.175,0.885,0.32,1.275);
+  user-select: none;
+}
+.msg-notification.show {
+  transform: translateX(-50%) translateY(0);
+}
+.msg-notif-avatar {
+  width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: white;
+  flex-shrink: 0; overflow: hidden;
+}
+.msg-notif-body { flex: 1; min-width: 0; }
+.msg-notif-name {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 4px;
+}
+.msg-notif-text {
+  font-size: 13px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.msg-notif-count {
+  background: #ef4444; color: #fff;
+  font-size: 11px; font-weight: 800;
+  min-width: 22px; height: 22px;
+  border-radius: 11px; padding: 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ─── Special Badges ─────────────────────────────────────── */
+.user-special-badge {
+  display: inline-block; vertical-align: middle;
+  object-fit: contain; flex-shrink: 0;
+}
+.badge-list  { width: 16px; height: 16px; margin-left: 3px; }
+.badge-header { width: 20px; height: 20px; margin-left: 5px; vertical-align: middle; }
+.badge-notif { width: 14px; height: 14px; margin-left: 3px; vertical-align: middle; }
+.badge-blue-tick { filter: drop-shadow(0 0 3px rgba(59,130,246,0.5)); }
+.badge-youtube  { border-radius: 3px; }
+
+/* ─── Sohbet Notları placeholder ─────────────────────────── */
+.notes-entry {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.notes-icon {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
 }
