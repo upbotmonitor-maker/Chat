@@ -265,6 +265,16 @@ el.themeToggle.addEventListener("click", () =>
   applyTheme(state.theme === "light" ? "dark" : "light")
 );
 
+// ─── Ghost session koruması ───────────────────────────────
+// online:true olsa bile lastSeen 10+ dakika eskiyse offline say
+const STALE_MS = 10 * 60 * 1000;
+function isActuallyOnline(user) {
+  if (!user?.online) return false;
+  if (!user.lastSeen) return false;
+  const ts = user.lastSeen.toMillis ? user.lastSeen.toMillis() : Number(user.lastSeen);
+  return (Date.now() - ts) < STALE_MS;
+}
+
 // ─── Avatar rengi ─────────────────────────────────────────
 function getAvatarColor(name) {
   const colors = ["#6366f1","#8b5cf6","#ec4899","#f43f5e","#f97316",
@@ -623,12 +633,13 @@ function renderUserList() {
 
   el.userList.innerHTML = filtered
     .filter((u) => !state.blockedUsers.includes(u.uid))
-    .sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0))
+    .sort((a, b) => (isActuallyOnline(b) ? 1 : 0) - (isActuallyOnline(a) ? 1 : 0))
     .map((u) => {
       const isActive = u.uid === state.selectedUid;
       const color = getAvatarColor(u.username);
       const initial = (u.username || "?")[0].toUpperCase();
-      const statusText = u.online
+      const online = isActuallyOnline(u);
+      const statusText = online
         ? `<span class="status-dot online"></span> Çevrimiçi`
         : formatLastSeen(u.lastSeen);
       const unread = state.unreadCounts[u.uid] || 0;
@@ -639,7 +650,7 @@ function renderUserList() {
         <div class="user-item ${isActive ? "active" : ""}" data-uid="${safeHtml(u.uid)}">
           <div class="avatar" style="background:${color};flex-shrink:0${hasStory ? ";box-shadow:0 0 0 2.5px #ec4899,0 0 0 4px var(--surface)" : ""}">
             ${u.photoURL ? `<img src="${safeHtml(u.photoURL)}" class="avatar-photo" alt="${safeHtml(u.username)}" />` : initial}
-            <span class="presence-dot ${u.online ? "online" : "offline"}"></span>
+            <span class="presence-dot ${online ? "online" : "offline"}"></span>
           </div>
           <div class="user-info">
             <div class="user-badge-row">
@@ -710,7 +721,7 @@ async function selectUser(uid) {
 
 function updatePartnerStatus(profile) {
   if (!profile) return;
-  if (profile.online) {
+  if (isActuallyOnline(profile)) {
     el.partnerStatus.innerHTML = `<span class="status-dot online"></span> Çevrimiçi`;
   } else {
     el.partnerStatus.textContent = `Son görülme: ${formatLastSeen(profile.lastSeen)}`;

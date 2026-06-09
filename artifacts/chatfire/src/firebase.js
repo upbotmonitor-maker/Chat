@@ -44,7 +44,7 @@ export const db = getFirestore(app);
 
 // ─── Medya yardımcıları (Storage yok, Firestore'da base64) ─
 // Görseli canvas ile sıkıştırıp base64 data URL döndür
-async function compressImageToBase64(file, maxPx = 900, quality = 0.72) {
+async function compressImageToBase64(file, maxPx = 400, quality = 0.55) {
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Dosya okunamadı"));
@@ -200,7 +200,7 @@ export function subscribeUsers(callback, onError) {
 
 // ─── Profil Fotoğrafı Yükle (base64 → Firestore) ──────────
 export async function uploadProfilePhoto(uid, file) {
-  const dataUrl = await compressImageToBase64(file, 300, 0.8);
+  const dataUrl = await compressImageToBase64(file, 200, 0.65);
   await updateDoc(doc(db, "users", uid), { photoURL: dataUrl });
   return dataUrl;
 }
