@@ -5,12 +5,12 @@ export default defineConfig({
   base: "/",
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
     },
   },
-  root: path.resolve(__dirname),
+  root: path.resolve(import.meta.dirname),
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
 });
