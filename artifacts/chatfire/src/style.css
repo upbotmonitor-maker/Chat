@@ -1242,9 +1242,9 @@ input, textarea { font-family: inherit; outline: none; border: none; }
   display: inline-block; vertical-align: middle;
   object-fit: contain; flex-shrink: 0;
 }
-.badge-list  { width: 16px; height: 16px; margin-left: 3px; }
-.badge-header { width: 20px; height: 20px; margin-left: 5px; vertical-align: middle; }
-.badge-notif { width: 14px; height: 14px; margin-left: 3px; vertical-align: middle; }
+.badge-list  { width: 26px; height: 26px; margin-left: 3px; }
+.badge-header { width: 30px; height: 30px; margin-left: 5px; vertical-align: middle; }
+.badge-notif { width: 22px; height: 22px; margin-left: 3px; vertical-align: middle; }
 .badge-blue-tick { filter: drop-shadow(0 0 3px rgba(59,130,246,0.5)); }
 .badge-youtube  { border-radius: 3px; }
 
