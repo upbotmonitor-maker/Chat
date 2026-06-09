@@ -931,25 +931,38 @@ function initVoicePlayers() {
     const time     = player.querySelector(".vp-time");
     const track    = player.querySelector(".vp-track");
     let audio      = null;
+    let _rafId     = null;
 
     function stopOther() {
       if (_vpCurrentAudio && _vpCurrentAudio !== audio) {
         _vpCurrentAudio.pause();
-        if (_vpCurrentPlayer) resetVpPlayer(_vpCurrentPlayer, parseFloat(_vpCurrentPlayer.dataset.dur) || 0);
+        if (_vpCurrentPlayer) {
+          const od = parseFloat(_vpCurrentPlayer.dataset.dur) || 0;
+          resetVpPlayer(_vpCurrentPlayer, od);
+        }
         _vpCurrentAudio = null;
         _vpCurrentPlayer = null;
       }
     }
 
-    function onTimeUpdate() {
-      const dur = isFinite(audio.duration) ? audio.duration : totalDur;
-      if (dur > 0) {
-        fill.style.width = `${(audio.currentTime / dur) * 100}%`;
-        time.textContent = `${fmtT(audio.currentTime)} / ${fmtT(dur)}`;
+    // requestAnimationFrame döngüsü — timeupdate'e güvenmek yerine
+    // her frame'de currentTime'ı doğrudan oku; mobilde çok daha güvenilir
+    function startRaf() {
+      cancelAnimationFrame(_rafId);
+      function tick() {
+        if (!audio || audio.paused || audio.ended) return;
+        const dur = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : totalDur;
+        if (dur > 0) {
+          fill.style.width = `${(audio.currentTime / dur) * 100}%`;
+          time.textContent = `${fmtT(audio.currentTime)} / ${fmtT(dur)}`;
+        }
+        _rafId = requestAnimationFrame(tick);
       }
+      _rafId = requestAnimationFrame(tick);
     }
 
     function onEnded() {
+      cancelAnimationFrame(_rafId);
       resetVpPlayer(player, totalDur);
       audio = null;
       _vpCurrentAudio = null;
@@ -960,19 +973,25 @@ function initVoicePlayers() {
       if (!audio) {
         stopOther();
         audio = new Audio(src);
-        audio.addEventListener("timeupdate", onTimeUpdate);
         audio.addEventListener("ended", onEnded);
-        audio.addEventListener("error", () => { resetVpPlayer(player, totalDur); audio = null; });
+        audio.addEventListener("error", () => {
+          cancelAnimationFrame(_rafId);
+          resetVpPlayer(player, totalDur);
+          audio = null;
+        });
         _vpCurrentAudio   = audio;
         _vpCurrentPlayer  = player;
-        audio.play().then(() => { btn.innerHTML = PAUSE_SVG; }).catch(() => { resetVpPlayer(player, totalDur); audio = null; });
+        audio.play()
+          .then(() => { btn.innerHTML = PAUSE_SVG; startRaf(); })
+          .catch(() => { resetVpPlayer(player, totalDur); audio = null; });
       } else if (audio.paused) {
         stopOther();
         _vpCurrentAudio  = audio;
         _vpCurrentPlayer = player;
-        audio.play().then(() => { btn.innerHTML = PAUSE_SVG; });
+        audio.play().then(() => { btn.innerHTML = PAUSE_SVG; startRaf(); });
       } else {
         audio.pause();
+        cancelAnimationFrame(_rafId);
         btn.innerHTML = PLAY_SVG;
         _vpCurrentAudio  = null;
         _vpCurrentPlayer = null;
@@ -983,7 +1002,7 @@ function initVoicePlayers() {
       if (!audio) return;
       const rect = track.getBoundingClientRect();
       const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const dur  = isFinite(audio.duration) ? audio.duration : totalDur;
+      const dur  = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : totalDur;
       audio.currentTime = pct * dur;
     });
   });
