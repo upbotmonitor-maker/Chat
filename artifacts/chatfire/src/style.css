@@ -1248,9 +1248,9 @@ input, textarea { font-family: inherit; outline: none; border: none; }
   -webkit-user-select: none;
   user-select: none;
 }
-.badge-list  { width: 18px; height: 18px; margin-left: 3px; }
-.badge-header { width: 22px; height: 22px; margin-left: 5px; vertical-align: middle; }
-.badge-notif { width: 16px; height: 16px; margin-left: 3px; vertical-align: middle; }
+.badge-list  { width: 22px; height: 22px; margin-left: 3px; }
+.badge-header { width: 26px; height: 26px; margin-left: 5px; vertical-align: middle; }
+.badge-notif { width: 18px; height: 18px; margin-left: 3px; vertical-align: middle; }
 .badge-blue-tick { }
 .badge-youtube  { border-radius: 3px; }
 

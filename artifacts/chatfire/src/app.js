@@ -281,8 +281,8 @@ el.themeToggle.addEventListener("click", () =>
 );
 
 // ─── Ghost session koruması ───────────────────────────────
-// online:true olsa bile lastSeen 10+ dakika eskiyse offline say
-const STALE_MS = 10 * 60 * 1000;
+// online:true olsa bile lastSeen 90 saniyeden eskiyse offline say
+const STALE_MS = 90 * 1000;
 function isActuallyOnline(user) {
   if (!user?.online) return false;
   if (!user.lastSeen) return false;
@@ -1449,10 +1449,15 @@ el.blockConfirmBtn.addEventListener("click", async () => {
 // ─── Presence Yönetimi ────────────────────────────────────
 let _presenceUid = null;
 let _inactivityTimer = null;
-const INACTIVITY_MS = 5 * 60 * 1000;
+let _heartbeatInterval = null;
+let _offlineTimer = null;
+const INACTIVITY_MS = 8 * 60 * 1000;
+const HEARTBEAT_MS = 40 * 1000; // 40sn'de bir lastSeen güncelle
 
 function _goOnline() {
   if (!_presenceUid) return;
+  clearTimeout(_offlineTimer);
+  _offlineTimer = null;
   setPresence(_presenceUid, true);
   clearTimeout(_inactivityTimer);
   _inactivityTimer = setTimeout(_goOffline, INACTIVITY_MS);
@@ -1466,6 +1471,7 @@ function _goOffline() {
 
 function _resetActivity() {
   if (!_presenceUid) return;
+  if (_offlineTimer) { clearTimeout(_offlineTimer); _offlineTimer = null; }
   if (_inactivityTimer) clearTimeout(_inactivityTimer);
   _inactivityTimer = setTimeout(_goOffline, INACTIVITY_MS);
   setPresence(_presenceUid, true);
@@ -1475,12 +1481,28 @@ function _setupPresence(uid) {
   _presenceUid = uid;
   _goOnline();
 
+  // Heartbeat: aktif sekmelerde 40sn'de bir lastSeen güncelle
+  // Böylece STALE_MS (90sn) geçmeden online görünür
+  _heartbeatInterval = setInterval(() => {
+    if (_presenceUid && document.visibilityState !== "hidden") {
+      setPresence(_presenceUid, true);
+    }
+  }, HEARTBEAT_MS);
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      _goOffline();
+      // Hemen offline yapma — 60sn bekle, sekme geri gelirse iptal et
+      _offlineTimer = setTimeout(() => {
+        _goOffline();
+        _offlineTimer = null;
+      }, 60 * 1000);
     } else {
       _goOnline();
     }
+  });
+
+  window.addEventListener("pagehide", () => {
+    _presenceUid && setPresence(_presenceUid, false);
   });
 
   window.addEventListener("beforeunload", () => {
@@ -1495,7 +1517,11 @@ function _setupPresence(uid) {
 function _teardownPresence() {
   _goOffline();
   clearTimeout(_inactivityTimer);
+  clearTimeout(_offlineTimer);
+  clearInterval(_heartbeatInterval);
   _presenceUid = null;
+  _heartbeatInterval = null;
+  _offlineTimer = null;
 }
 
 // ─── Ana akış: Auth durumu ────────────────────────────────
