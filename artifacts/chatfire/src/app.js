@@ -904,12 +904,32 @@ function renderMessages(msgs) {
 }
 
 // ─── Özel Ses Oynatıcı ────────────────────────────────────
-let _vpCurrentAudio = null;
-let _vpCurrentPlayer = null;
-const _voiceUrlMap = new Map(); // msgId → audioURL (base64 bozulmasın diye attribute'a yazılmıyor)
+let _vpCurrentAudio  = null;   // şu an çalan Audio nesnesi
+let _vpCurrentMsgId  = null;   // şu an çalan mesajın ID'si
+const _voiceUrlMap   = new Map(); // msgId → audioURL (base64 safeHtml'dan geçmesin)
 
 const PLAY_SVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
 const PAUSE_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`;
+
+// Global tek ticker — DOM yenilense bile hep güncel elemanlara yazar
+const _vpGlobalTicker = setInterval(() => {
+  if (!_vpCurrentAudio || !_vpCurrentMsgId) return;
+  // DOM'dan güncel player'ı bul (innerHTML değişse bile)
+  const player = el.messages.querySelector(`.voice-player[data-msgid="${_vpCurrentMsgId}"]`);
+  if (!player) return;
+  const fill = player.querySelector(".vp-fill");
+  const time = player.querySelector(".vp-time");
+  const btn  = player.querySelector(".vp-play");
+  const totalDur = parseFloat(player.dataset.dur) || 0;
+  const dur = (isFinite(_vpCurrentAudio.duration) && _vpCurrentAudio.duration > 0)
+    ? _vpCurrentAudio.duration : totalDur;
+  if (dur > 0 && fill && time) {
+    fill.style.width = `${(_vpCurrentAudio.currentTime / dur) * 100}%`;
+    time.textContent = `${fmtT(_vpCurrentAudio.currentTime)} / ${fmtT(dur)}`;
+  }
+  // Buton simgesi: oynatma devam ediyorsa pause göster
+  if (btn && !_vpCurrentAudio.paused) btn.innerHTML = PAUSE_SVG;
+}, 100);
 
 function fmtT(s) {
   const m = Math.floor(s / 60);
@@ -925,120 +945,91 @@ function resetVpPlayer(player, totalDur) {
   if (time) time.textContent = `0:00 / ${fmtT(totalDur)}`;
 }
 
+function resetAllVpPlayers() {
+  // Tüm voice player'ları sıfırla (başka mesaj açılınca vs.)
+  el.messages.querySelectorAll(".voice-player").forEach((p) => {
+    const d = parseFloat(p.dataset.dur) || 0;
+    resetVpPlayer(p, d);
+  });
+}
+
 function initVoicePlayers() {
   el.messages.querySelectorAll(".voice-player").forEach((player) => {
     const msgId    = player.dataset.msgid;
     const src      = _voiceUrlMap.get(msgId) || "";
     const totalDur = parseFloat(player.dataset.dur) || 0;
     const btn      = player.querySelector(".vp-play");
-    const fill     = player.querySelector(".vp-fill");
-    const time     = player.querySelector(".vp-time");
     const track    = player.querySelector(".vp-track");
-    let audio      = null;
-    let _ticker    = null;
-    let _playing   = false;
 
-    function updateUI() {
-      if (!audio) return;
-      const dur = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : totalDur;
-      if (dur > 0) {
-        fill.style.width = `${(audio.currentTime / dur) * 100}%`;
-        time.textContent = `${fmtT(audio.currentTime)} / ${fmtT(dur)}`;
-      }
+    // Eğer şu an bu mesaj çalınıyorsa butonu güncelle
+    if (_vpCurrentMsgId === msgId && _vpCurrentAudio && !_vpCurrentAudio.paused) {
+      btn.innerHTML = PAUSE_SVG;
     }
 
-    function startTicker() {
-      clearInterval(_ticker);
-      _ticker = setInterval(updateUI, 100);
-    }
-
-    function stopTicker() {
-      clearInterval(_ticker);
-      _ticker = null;
-    }
-
-    function stopOther() {
-      if (_vpCurrentAudio && _vpCurrentAudio !== audio) {
+    function stopCurrentAudio() {
+      if (_vpCurrentAudio) {
         _vpCurrentAudio.pause();
-        if (_vpCurrentPlayer) {
-          const od = parseFloat(_vpCurrentPlayer.dataset.dur) || 0;
-          resetVpPlayer(_vpCurrentPlayer, od);
-        }
         _vpCurrentAudio = null;
-        _vpCurrentPlayer = null;
       }
+      _vpCurrentMsgId = null;
+      resetAllVpPlayers();
     }
 
     function onEnded() {
-      stopTicker();
-      _playing = false;
-      resetVpPlayer(player, totalDur);
-      audio = null;
       _vpCurrentAudio = null;
-      _vpCurrentPlayer = null;
-    }
-
-    function onError() {
-      stopTicker();
-      _playing = false;
+      _vpCurrentMsgId = null;
       resetVpPlayer(player, totalDur);
-      audio = null;
     }
 
     btn.addEventListener("click", () => {
-      if (!audio) {
-        if (!src) return;
-        stopOther();
-        audio = new Audio(src);
-        audio.addEventListener("ended", onEnded);
-        audio.addEventListener("error", onError);
-        _vpCurrentAudio   = audio;
-        _vpCurrentPlayer  = player;
-        const p = audio.play();
-        if (p && p.then) {
-          p.then(() => {
-            _playing = true;
-            btn.innerHTML = PAUSE_SVG;
-            startTicker();
-          }).catch(onError);
+      // Aynı mesaj çalınıyorsa duraklat
+      if (_vpCurrentMsgId === msgId && _vpCurrentAudio) {
+        if (!_vpCurrentAudio.paused) {
+          _vpCurrentAudio.pause();
+          btn.innerHTML = PLAY_SVG;
+          return;
         } else {
-          _playing = true;
+          _vpCurrentAudio.play();
           btn.innerHTML = PAUSE_SVG;
-          startTicker();
+          return;
         }
-      } else if (!_playing || audio.paused) {
-        stopOther();
-        _vpCurrentAudio  = audio;
-        _vpCurrentPlayer = player;
-        const p = audio.play();
-        if (p && p.then) {
-          p.then(() => {
-            _playing = true;
-            btn.innerHTML = PAUSE_SVG;
-            startTicker();
-          });
-        } else {
-          _playing = true;
-          btn.innerHTML = PAUSE_SVG;
-          startTicker();
-        }
+      }
+
+      // Başka bir şey çalıyorsa önce onu durdur
+      if (_vpCurrentAudio) stopCurrentAudio();
+      if (!src) return;
+
+      const audio = new Audio(src);
+      audio.addEventListener("ended", onEnded);
+      audio.addEventListener("error", () => {
+        _vpCurrentAudio = null;
+        _vpCurrentMsgId = null;
+        resetVpPlayer(player, totalDur);
+      });
+
+      _vpCurrentAudio = audio;
+      _vpCurrentMsgId = msgId;
+
+      const p = audio.play();
+      if (p && p.then) {
+        p.then(() => { btn.innerHTML = PAUSE_SVG; })
+         .catch(() => {
+           _vpCurrentAudio = null;
+           _vpCurrentMsgId = null;
+           resetVpPlayer(player, totalDur);
+         });
       } else {
-        audio.pause();
-        stopTicker();
-        _playing = false;
-        btn.innerHTML = PLAY_SVG;
-        _vpCurrentAudio  = null;
-        _vpCurrentPlayer = null;
+        btn.innerHTML = PAUSE_SVG;
       }
     });
 
     track.addEventListener("click", (e) => {
-      if (!audio) return;
+      if (_vpCurrentMsgId !== msgId || !_vpCurrentAudio) return;
       const rect = track.getBoundingClientRect();
       const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const dur  = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : totalDur;
-      audio.currentTime = pct * dur;
-      updateUI();
+      const dur  = (isFinite(_vpCurrentAudio.duration) && _vpCurrentAudio.duration > 0)
+        ? _vpCurrentAudio.duration : totalDur;
+      _vpCurrentAudio.currentTime = pct * dur;
     });
   });
 }
