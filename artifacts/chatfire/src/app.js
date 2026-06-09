@@ -94,6 +94,10 @@ const voiceRec = {
   mimeType: "audio/webm",
 };
 
+// ─── Tab Senkronizasyonu ─────────────────────────────────
+const _sessionBc = (typeof BroadcastChannel !== 'undefined')
+  ? new BroadcastChannel('chatfire_session') : null;
+
 // ─── DOM ──────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -422,7 +426,15 @@ el.registerForm.addEventListener("submit", async (e) => {
 
 // ─── Çıkış ────────────────────────────────────────────────
 el.logoutBtn.addEventListener("click", async () => {
-  await logoutUser(state.currentUser?.uid);
+  if (el.logoutBtn.disabled) return;
+  el.logoutBtn.disabled = true;
+  try {
+    const uid = state.currentUser?.uid;
+    if (uid) await setPresence(uid, false);   // anında çevrimdışı
+    await logoutUser(uid);
+  } finally {
+    el.logoutBtn.disabled = false;
+  }
 });
 
 // ─── Profil fotoğrafı yükleme ─────────────────────────────
@@ -1639,9 +1651,11 @@ onAuth(async (user) => {
       renderStoryRow();
     });
 
+    document.getElementById("session-init")?.classList.add("hidden");
     el.authScreen.classList.add("hidden");
     el.chatScreen.classList.remove("hidden");
     applyTheme(state.theme);
+    _sessionBc?.postMessage({ type: "login" });
   } else {
     _teardownPresence();
     state.currentUser = null;
@@ -1652,12 +1666,24 @@ onAuth(async (user) => {
     if (state.unsubStatuses) { state.unsubStatuses(); state.unsubStatuses = null; }
     cleanupConversation();
 
+    document.getElementById("session-init")?.classList.add("hidden");
     el.chatScreen.classList.add("hidden");
     el.authScreen.classList.remove("hidden");
     el.chatView.classList.add("hidden");
     el.emptyState.classList.remove("hidden");
+    _sessionBc?.postMessage({ type: "logout" });
   }
 });
+
+// ─── Tab Senkronizasyonu Handler ────────────────────────
+if (_sessionBc) {
+  _sessionBc.onmessage = ({ data }) => {
+    if (data.type === 'logout' && state.currentUser) {
+      // Başka sekme çıkış yaptı → bu sekmeyi de senkronize et
+      logoutUser(state.currentUser.uid).catch(() => {});
+    }
+  };
+}
 
 applyTheme(state.theme);
 
